@@ -27,7 +27,6 @@ const CreditCardItem = ({ bank, name, annualFee, color, delay }) => (
           Anualidad: <span className="font-bold text-white">${annualFee} MXN</span>
         </p>
       </div>
-      <div className="w-10 h-7 bg-white/30 rounded-md backdrop-blur-sm border border-white/20" />
     </div>
   </motion.div>
 );

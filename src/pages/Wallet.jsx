@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Zap, Trash2, LayoutGrid, X, ArrowLeft, Star, Percent, Info, ChevronRight, Check } from 'lucide-react';
+import { Plus, Zap, Trash2, LayoutGrid, X, ArrowLeft, Star, Percent, Info, ChevronRight, Check, CreditCard } from 'lucide-react';
 
 const AVAILABLE_CARDS_DB = [
   { 
@@ -86,8 +86,11 @@ const Wallet = ({ onBack }) => {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, x: -100 }}
                 onClick={() => setSelectedCard(card)}
-                className={`relative p-7 rounded-[2.5rem] h-48 flex flex-col justify-between shadow-2xl cursor-pointer transform active:scale-95 transition-all ${card.color}`}
+                className={`relative overflow-hidden p-7 rounded-[2.5rem] h-48 flex flex-col justify-between shadow-2xl cursor-pointer transform active:scale-95 transition-all ${card.color}`}
               >
+                <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition-opacity">
+                  <CreditCard size={80} strokeWidth={1} className="-rotate-12 translate-x-8 -translate-y-4" />
+                </div>
                 <div className="flex justify-between items-start">
                    <div className="bg-white/15 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">{card.bank}</div>
                    <button 

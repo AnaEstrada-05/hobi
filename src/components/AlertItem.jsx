@@ -3,14 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, XCircle, MapPin, CreditCard, ThumbsUp, ThumbsDown, AlertTriangle } from 'lucide-react';
 
 export const AlertItem = ({ brand, location, category, card, cashback, time, initialStatus }) => {
-  const [feedback, setFeedback] = useState(null); // 'success', 'fail', null
+  const [feedback, setFeedback] = useState(null); 
 
   return (
     <motion.div 
       layout
       className="bg-white p-5 rounded-[2.5rem] border border-slate-100 shadow-sm mb-4 relative overflow-hidden"
     >
-      {/* Etiqueta de Advertencia si falla el aprendizaje */}
       {feedback === 'fail' && (
         <div className="absolute top-0 left-0 right-0 bg-rose-500 text-white text-[9px] font-black uppercase py-1 px-4 flex items-center justify-center gap-2">
           <AlertTriangle size={10} />

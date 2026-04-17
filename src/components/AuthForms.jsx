@@ -1,6 +1,6 @@
 import React from 'react';
 import { Mail, Lock, User, Chrome, Apple, ArrowLeft } from 'lucide-react';
-import { InputGroup, ActionButton, SocialButton } from './AuthComponents';
+import { InputGroup, ActionButton, SocialButton } from '../pages/AuthComponents';
 
 export const AuthForm = ({ mode, onBack, onSuccess }) => (
   <div className="flex-1 flex flex-col justify-center px-8 z-10">
