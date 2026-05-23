@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CreditCard, ExternalLink } from 'lucide-react';
+import { supabase } from '../services/supabaseClient';
 
 const CreditCardItem = ({ bank, name, annualFee, color, delay }) => (
   <motion.div
@@ -8,19 +9,17 @@ const CreditCardItem = ({ bank, name, annualFee, color, delay }) => (
     animate={{ opacity: 1, x: 0 }}
     transition={{ duration: 0.8, delay, ease: [0.22, 1, 0.36, 1] }}
     whileHover={{ scale: 1.02 }}
-    className={`relative overflow-hidden p-6 rounded-[2.5rem] text-white shadow-xl mb-4 h-44 flex flex-col justify-between group cursor-pointer ${color}`}
+    className={`relative overflow-hidden p-6 rounded-[2.5rem] text-white shadow-xl mb-4 h-44 flex flex-col justify-between group cursor-pointer ${color || 'bg-gradient-to-br from-blue-600 to-cyan-500'}`}
   >
     <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition-opacity">
       <CreditCard size={80} strokeWidth={1} className="-rotate-12 translate-x-8 -translate-y-4" />
     </div>
-
     <div className="relative z-10 flex justify-between items-start">
       <div>
         <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-white/80 mb-1">{bank}</p>
         <h3 className="text-xl font-black tracking-tight">{name}</h3>
       </div>
     </div>
-
     <div className="relative z-10 flex justify-between items-end">
       <div className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/20">
         <p className="text-[10px] font-medium text-white/90">
@@ -31,24 +30,66 @@ const CreditCardItem = ({ bank, name, annualFee, color, delay }) => (
   </motion.div>
 );
 
-// Recibimos la función onSeeAll como prop
 export const CardList = ({ onSeeAll }) => {
-  const myCards = [
-    {
-      id: 1,
-      bank: "Santander",
-      name: "Santander LikeU",
-      annualFee: "1,200",
-      color: "bg-gradient-to-br from-[#1e40af] to-[#2563eb]", 
-    },
-    {
-      id: 2,
-      bank: "BBVA",
-      name: "BBVA Azul",
-      annualFee: "800",
-      color: "bg-gradient-to-br from-[#0f172a] to-[#1e293b]", 
+  const [myCards, setMyCards] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchCards = async () => {
+    try {
+      setLoading(true);
+
+      // CORRECCIÓN: obtenemos el uid del usuario autenticado
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+
+      // Consultamos User_Cards del usuario cruzando con Cards_Master
+      // Solo aparecen las tarjetas que el usuario eligió en el registro
+      const { data, error } = await supabase
+        .from('User_Cards')
+        .select(`
+          card_id,
+          Cards_Master (
+            id,
+            bank_name,
+            card_name,
+            annual_fee
+          )
+        `)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      const cardsWithColors = (data ?? []).map((row) => {
+        const card = row.Cards_Master;
+        let color = "bg-gradient-to-br from-[#0f172a] to-[#1e293b]";
+        if (card.card_name.includes('LikeU')) color = "bg-gradient-to-br from-[#1e40af] to-[#2563eb]";
+        if (card.card_name.includes('Rappi')) color = "bg-gradient-to-br from-[#e11d48] to-[#f43f5e]";
+        if (card.card_name.includes('Nu'))    color = "bg-gradient-to-br from-[#7c3aed] to-[#a855f7]";
+
+        return {
+          id:        card.id,
+          bank:      card.bank_name,
+          name:      card.card_name,
+          annualFee: card.annual_fee,
+          color,
+        };
+      });
+
+      setMyCards(cardsWithColors);
+    } catch (err) {
+      console.error("Error cargando tarjetas del usuario:", err.message);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    fetchCards();
+  }, []);
+
+  if (loading) {
+    return <p className="text-sm font-bold text-slate-400 mt-10 text-center">Cargando tarjetas desde Hobi...</p>;
+  }
 
   return (
     <div className="w-full mt-10">
@@ -59,8 +100,7 @@ export const CardList = ({ onSeeAll }) => {
             {myCards.length}
           </span>
         </div>
-        {/* Ejecutamos la función al hacer click */}
-        <button 
+        <button
           onClick={onSeeAll}
           className="text-blue-600 text-sm font-bold flex items-center gap-1 hover:text-blue-800 transition-colors"
         >
@@ -70,13 +110,17 @@ export const CardList = ({ onSeeAll }) => {
       </div>
 
       <div className="flex flex-col">
-        {myCards.map((card, index) => (
-          <CreditCardItem 
-            key={card.id} 
-            {...card} 
-            delay={0.2 * index} 
-          />
-        ))}
+        {myCards.length === 0 ? (
+          <p className="text-xs font-bold text-slate-400">No hay tarjetas registradas en tu wallet.</p>
+        ) : (
+          myCards.map((card, index) => (
+            <CreditCardItem
+              key={card.id}
+              {...card}
+              delay={0.2 * index}
+            />
+          ))
+        )}
       </div>
     </div>
   );

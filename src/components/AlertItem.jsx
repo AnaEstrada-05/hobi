@@ -1,9 +1,29 @@
+import { supabase } from '../services/supabaseClient';
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, XCircle, MapPin, CreditCard, ThumbsUp, ThumbsDown, AlertTriangle } from 'lucide-react';
 
 export const AlertItem = ({ brand, location, category, card, cashback, time, initialStatus }) => {
   const [feedback, setFeedback] = useState(null); 
+
+  const handleFeedback = async (status) => {
+  setFeedback(status); 
+
+  const { data, error } = await supabase
+    .from('Feedback_Log')
+    .insert([
+      { 
+        status: status === 'success' ? 'Yes' : 'No',
+        place_id: brand // Guardamos el nombre del comercio como referencia temporal
+      }
+    ]);
+
+  if (error) {
+    console.error("Error al guardar feedback:", error.message);
+  } else {
+    console.log("¡Feedback comunitario guardado con éxito!");
+  }
+};
 
   return (
     <motion.div 
@@ -50,7 +70,7 @@ export const AlertItem = ({ brand, location, category, card, cashback, time, ini
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">¿Recibiste tu cashback?</p>
               <div className="flex gap-2">
                 <button 
-                  onClick={() => setFeedback('success')}
+                  onClick={() => handleFeedback('success')}
                   className="flex-1 flex items-center justify-center gap-2 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black hover:bg-emerald-100 transition-colors"
                 >
                   <ThumbsUp size={12} /> SÍ, TODO BIEN
