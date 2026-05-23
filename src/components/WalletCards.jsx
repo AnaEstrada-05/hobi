@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Trash2, Info } from 'lucide-react';
+import { CreditCard } from 'lucide-react';
 
 export const WalletCard = ({ card, onSelect, onDelete }) => (
   <motion.div
@@ -30,6 +31,7 @@ export const WalletCard = ({ card, onSelect, onDelete }) => (
       <div className="flex items-center gap-2 text-[10px] opacity-70">
         <Info size={12} /> Detalles y beneficios
       </div>
+      <CreditCard size={80} className="absolute -right-6 -bottom-6 text-white/10 -rotate-12 pointer-events-none" />
     </div>
   </motion.div>
 );

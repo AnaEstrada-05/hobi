@@ -2,7 +2,7 @@ import React from 'react';
 import { Bell, Wallet, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-export const HomeHeader = ({ name = "Usuario", onNotificationClick, onWalletClick }) => {
+export const HomeHeader = ({ name, onNotificationClick, onWalletClick, onAlertsClick }) => {
   return (
     <motion.div 
       layoutId="blue-surface"
@@ -28,7 +28,7 @@ export const HomeHeader = ({ name = "Usuario", onNotificationClick, onWalletClic
             <div className="relative">
               <motion.button 
                 whileTap={{ scale: 0.9 }}
-                onClick={onNotificationClick}
+                onClick={onAlertsClick}
                 className="p-2 bg-white/5 rounded-full hover:bg-white/15"
               >
                 <Bell size={22} strokeWidth={1.5} />

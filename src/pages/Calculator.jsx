@@ -1,17 +1,72 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Utensils, Fuel, ShoppingCart, Calculator as CalcIcon, RefreshCcw, ArrowLeft } from 'lucide-react';
 import { CategoryInput } from '../components/CategoryInput';
 import { ResultCard } from '../components/ResultCard';
-
-const CARD_BENEFITS_DB = [
-  { id: 1, name: "Santander LikeU", annualFee: 0, cashbackRates: { restaurantes: 0.05, gasolina: 0.04, super: 0.01 }, color: "bg-rose-600" },
-  { id: 2, name: "BBVA Azul", annualFee: 832, cashbackRates: { restaurantes: 0.01, gasolina: 0.01, super: 0.02 }, color: "bg-[#072146]" },
-  { id: 3, name: "Amex Gold Elite", annualFee: 3500, cashbackRates: { restaurantes: 0.03, gasolina: 0.02, super: 0.05 }, color: "bg-amber-600" }
-];
+import { supabase } from '../services/supabaseClient';
 
 export default function Calculator({ onBack }) {
   const [expenses, setExpenses] = useState({ restaurantes: '', gasolina: '', super: '' });
+  const [cardsMatrix, setCardsMatrix] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMatrixData = async () => {
+      try {
+        setLoading(true);
+
+        // 1. Traemos las tarjetas master
+        const { data: masterData, error: masterError } = await supabase
+          .from('Cards_Master')
+          .select('id, bank_name, card_name, annual_fee');
+
+        if (masterError) throw masterError;
+
+        // 2. Traemos la matriz de beneficios por separado (Evita errores de llaves foráneas)
+        const { data: matrixData, error: matrixError } = await supabase
+          .from('Benefits_Matrix')
+          .select('card_id, category_id, percentage');
+
+        if (matrixError) throw matrixError;
+
+        // 3. Estructuramos el objeto relacional en memoria limpia
+        const structuredCards = {};
+        
+        masterData.forEach(card => {
+          let color = "bg-gradient-to-br from-[#0f172a] to-[#1e293b]"; // BBVA
+          if (card.card_name.includes('LikeU')) color = "bg-rose-600";
+          if (card.card_name.includes('Rappi')) color = "bg-orange-500";
+          if (card.card_name.includes('Nu')) color = "bg-purple-600";
+
+          structuredCards[card.id] = {
+            id: card.id,
+            name: `${card.bank_name} ${card.card_name}`,
+            annualFee: card.annual_fee,
+            color: color,
+            cashbackRates: { restaurantes: 0, gasolina: 0, super: 0 }
+          };
+        });
+
+        // 4. Cruzamos los porcentajes con base en el ID de categoría
+        matrixData.forEach(row => {
+          if (structuredCards[row.card_id]) {
+            const rateValue = row.percentage / 100;
+            if (row.category_id === 1) structuredCards[row.card_id].cashbackRates.restaurantes = rateValue;
+            if (row.category_id === 2) structuredCards[row.card_id].cashbackRates.gasolina = rateValue;
+            if (row.category_id === 4) structuredCards[row.card_id].cashbackRates.super = rateValue;
+          }
+        });
+
+        setCardsMatrix(Object.values(structuredCards));
+      } catch (err) {
+        console.error("Error construyendo matriz de calculadora:", err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMatrixData();
+  }, []);
 
   const calculateCashback = (card) => {
     const res = (Number(expenses.restaurantes) || 0) * card.cashbackRates.restaurantes;
@@ -19,6 +74,15 @@ export default function Calculator({ onBack }) {
     const sup = (Number(expenses.super) || 0) * card.cashbackRates.super;
     return res + gas + sup;
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center font-bold text-slate-400">
+        <div className="w-10 h-10 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin mb-3" />
+        <p className="text-xs uppercase tracking-wider font-black opacity-60">Sincronizando Matriz...</p>
+      </div>
+    );
+  }
 
   return (
     <motion.div 
@@ -40,53 +104,27 @@ export default function Calculator({ onBack }) {
           className="max-w-xl text-white"
         >
           <div className="flex items-center gap-3 mb-4">
-            <motion.button 
-              whileTap={{ scale: 0.9 }}
-              onClick={onBack}
-              className="p-2 hover:bg-white/10 rounded-full"
-            >
-              <ArrowLeft size={24} />
-            </motion.button>
-            <div className="p-3 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10">
-              <CalcIcon size={24} />
-            </div>
+            <motion.button whileTap={{ scale: 0.9 }} onClick={onBack} className="p-2 hover:bg-white/10 rounded-full"><ArrowLeft size={24} /></motion.button>
+            <div className="p-3 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/10"><CalcIcon size={24} /></div>
             <h1 className="text-3xl font-black tracking-tighter">Calculadora</h1>
           </div>
         </motion.div>
       </motion.div>
 
       <div className="max-w-xl mx-auto px-6 -mt-20 space-y-4 z-10 relative">
-        <CategoryInput 
-          label="Restaurantes" 
-          icon={Utensils} 
-          value={expenses.restaurantes} 
-          onChange={(v)=>setExpenses({...expenses, restaurantes:v})} 
-        />
-        <CategoryInput 
-          label="Gasolina" 
-          icon={Fuel} 
-          value={expenses.gasolina} 
-          onChange={(v)=>setExpenses({...expenses, gasolina:v})} 
-        />
-        <CategoryInput 
-          label="Súper" 
-          icon={ShoppingCart} 
-          value={expenses.super} 
-          onChange={(v)=>setExpenses({...expenses, super:v})} 
-        />
+        <CategoryInput label="Restaurantes" icon={Utensils} value={expenses.restaurantes} onChange={(v)=>setExpenses({...expenses, restaurantes:v})} />
+        <CategoryInput label="Gasolina" icon={Fuel} value={expenses.gasolina} onChange={(v)=>setExpenses({...expenses, gasolina:v})} />
+        <CategoryInput label="Súper" icon={ShoppingCart} value={expenses.super} onChange={(v)=>setExpenses({...expenses, super:v})} />
 
         <div className="pt-8 flex items-center justify-between">
           <h2 className="text-xl font-black text-slate-900 tracking-tight">Comparativa Anual</h2>
-          <button 
-            onClick={() => setExpenses({restaurantes: '', gasolina: '', super: ''})}
-            className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-          >
+          <button onClick={() => setExpenses({restaurantes: '', gasolina: '', super: ''})} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors">
             <RefreshCcw size={20} />
           </button>
         </div>
 
         <div className="space-y-2">
-          {CARD_BENEFITS_DB.map(card => (
+          {cardsMatrix.map(card => (
             <ResultCard key={card.id} card={card} cashbackEarned={calculateCashback(card)} />
           ))}
         </div>

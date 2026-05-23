@@ -1,38 +1,86 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Radar, Sparkles, ShieldCheck, ArrowLeft, ChevronRight } from 'lucide-react';
 import { AlertItem } from '../components/Alertitem';
+// Conexión a la base de datos real
+import { supabase } from '../services/supabaseClient';
 
 const Alerts = ({ onBack }) => {
-  const alertsHistory = [
-    {
-      id: 1,
-      brand: "Starbucks",
-      location: "Centro Comercial Santa Fe",
-      category: "Restaurantes", 
-      card: "Santander LikeU",
-      cashback: "5% cashback",
-      time: "Hace 2 horas"
-    },
-    {
-      id: 2,
-      brand: "Pemex",
-      location: "Av. Reforma 123",
-      category: "Gasolineras",
-      card: "BBVA Azul",
-      cashback: "1% cashback",
-      time: "Ayer"
-    },
-    {
-      id: 3,
-      brand: "7-Eleven",
-      location: "Calle 10 #45",
-      category: "Tiendas",
-      card: "Todas",
-      cashback: "Validación rápida",
-      time: "Ayer"
-    }
-  ];
+  const [alertsHistory, setAlertsHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAlertsData = async () => {
+      try {
+        setLoading(true);
+        
+        // Consultamos la matriz para simular las validaciones/alertas de la comunidad en tiempo real
+        const { data, error } = await supabase
+          .from('Benefits_Matrix')
+          .select(`
+            id,
+            percentage,
+            type,
+            category_id,
+            Cards_Master (bank_name, card_name)
+          `)
+          .limit(5); // Traemos los más relevantes para la comunidad
+
+        if (error) throw error;
+
+        // Mapeamos los datos reales de la BD al formato visual que espera <AlertItem />
+        const formattedAlerts = data.map((row, index) => {
+          const cardInfo = row.Cards_Master;
+          
+          // Mapeo dinámico de comercios ficticios según tu ID de categoría en Supabase
+          let brand = "Comercio Asociado";
+          let location = "Ubicación cercana";
+          let category = "General";
+
+          if (row.category_id === 1) {
+            brand = "Starbucks";
+            location = "Distrito Uno / Local Centro";
+            category = "Restaurantes";
+          } else if (row.category_id === 2) {
+            brand = "Pemex / Oxxo Gas";
+            location = "Av. de la Juventud";
+            category = "Gasolineras";
+          } else if (row.category_id === 4) {
+            brand = "Walmart / Soriana";
+            location = "Periférico de la Juventud";
+            category = "Súper";
+          }
+
+          return {
+            id: row.id || index,
+            brand: brand,
+            location: location,
+            category: category,
+            card: cardInfo ? `${cardInfo.bank_name} ${cardInfo.card_name}` : "Tarjeta de Crédito",
+            cashback: `${row.percentage}% ${row.type || 'Cashback'}`,
+            time: `Hace ${index + 1} hora${index > 0 ? 's' : ''}`
+          };
+        });
+
+        setAlertsHistory(formattedAlerts);
+      } catch (err) {
+        console.error("Error cargando alertas de comunidad desde BD:", err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAlertsData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-[#1e3a8a] flex flex-col items-center justify-center text-white z-[999]">
+        <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4" />
+        <p className="font-black tracking-widest text-[10px] uppercase opacity-70">Cargando Radar de Comunidad...</p>
+      </div>
+    );
+  }
 
   return (
     <motion.div 
@@ -97,21 +145,21 @@ const Alerts = ({ onBack }) => {
           <div className="flex flex-col gap-4 relative">
             {alertsHistory.map((alert, index) => (
                 <motion.div
-                key={alert.id}
-                layout 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ 
-                    delay: 0.2 + (index * 0.1),
-                    duration: 0.4,
-                    ease: "easeOut"
-                }}
-                className="relative w-full overflow-hidden rounded-[1.5rem] active:scale-[0.98] transition-transform"
+                  key={alert.id}
+                  layout 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ 
+                      delay: 0.2 + (index * 0.1),
+                      duration: 0.4,
+                      ease: "easeOut"
+                  }}
+                  className="relative w-full overflow-hidden rounded-[1.5rem] active:scale-[0.98] transition-transform"
                 >
-                <AlertItem {...alert} />
+                  <AlertItem {...alert} />
                 </motion.div>
             ))}
-            </div>
+          </div>
         </div>
       </motion.div>
     </motion.div>

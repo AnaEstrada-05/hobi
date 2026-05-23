@@ -1,0 +1,238 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { supabase } from './supabaseClient';
+
+const HAVERSINE_MOVEMENT_THRESHOLD_M = 25;
+const CACHE_LOOKUP_RADIUS_M          = 35;
+const GOOGLE_PLACES_NEARBY_ENDPOINT  = 'https://places.googleapis.com/v1/places:searchNearby';
+
+
+function haversineDistanceMeters(lat1, lng1, lat2, lng2) {
+  const R    = 6_371_000; // radio de la Tierra en metros
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+async function lookupPlaceInCache(lat, lng) {
+  const { data, error } = await supabase.rpc('find_nearby_cached_place', {
+    user_lat: lat,
+    user_lng:  lng,
+    radius_m:  CACHE_LOOKUP_RADIUS_M,
+  });
+
+  if (error) {
+    console.warn('[Hobi Cache] RPC error en lookup:', error.message);
+    return null;
+  }
+
+  // La RPC devuelve el resultado mas cercano ordenado por distancia ASC
+  return data && data.length > 0 ? data[0] : null;
+}
+
+
+async function savePlaceToCache(placeId, displayName, types, categoryId, lat, lng) {
+  const { error } = await supabase.from('Places_Cache').upsert(
+    {
+      place_id:     placeId,
+      display_name: displayName,
+      types:        types,          
+      category_id:  categoryId,
+      lat:          lat,
+      lng:          lng,
+    },
+    { onConflict: 'place_id' }      
+  );
+
+  if (error) {
+    console.warn('[Hobi Cache] Error al guardar en Places_Cache:', error.message);
+  }
+}
+
+async function fetchNearbyPlaceFromGoogle(lat, lng, apiKey) {
+  const response = await fetch(GOOGLE_PLACES_NEARBY_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type':     'application/json',
+      'X-Goog-FieldMask': 'places.displayName,places.types,places.id',
+      'X-Goog-Api-Key':   apiKey,
+    },
+    body: JSON.stringify({
+      locationRestriction: {
+        circle: {
+          center: { latitude: lat, longitude: lng },
+          radius: 50.0,
+        },
+      },
+      maxResultCount: 1,
+    }),
+  });
+
+  if (!response.ok) {
+    const errBody = await response.text();
+    throw new Error(`Google Places API error ${response.status}: ${errBody}`);
+  }
+
+  const json = await response.json();
+
+  if (!json.places || json.places.length === 0) return null;
+
+  const place = json.places[0];
+  return {
+    placeId:     place.id,
+    displayName: place.displayName?.text ?? 'Establecimiento desconocido',
+    types:       place.types ?? [],
+  };
+}
+
+async function resolveCategoryFromDB(googleTypes) {
+  const { data: categories, error } = await supabase
+    .from('Categories')
+    .select('id, name, google_place_type');
+
+  if (error) throw new Error(`Error cargando Categories: ${error.message}`);
+  if (!categories || categories.length === 0) return null;
+
+  // Iteramos en orden de prioridad: el primer token de Google que coincida gana
+  for (const googleType of googleTypes) {
+    const match = categories.find(
+      (cat) => cat.google_place_type === googleType
+    );
+    if (match) return { categoryId: match.id, categoryName: match.name };
+  }
+
+  return null; 
+}
+
+async function resolveBestCard(userUid, categoryId) {
+  const { data: walletCards, error } = await supabase
+    .from('User_Cards')
+    .select(`
+      card_id,
+      Cards_Master (bank_name, card_name),
+      Benefits_Matrix!inner (percentage, type)
+    `)
+    .eq('user_id', userUid)
+    .eq('Benefits_Matrix.category_id', categoryId)
+    .order('Benefits_Matrix.percentage', { ascending: false });
+
+  if (error) throw new Error(`Error resolviendo tarjeta Ã³ptima: ${error.message}`);
+
+  return walletCards && walletCards.length > 0 ? walletCards[0] : null;
+}
+
+
+// HOOK PRINCIPAL 
+export function useGeofencing({ userUid, googleApiKey, enabled = true }) {
+  const [isLoading,    setIsLoading]    = useState(false);
+  const [error,        setError]        = useState(null);
+  const [locationData, setLocationData] = useState(null);
+
+  const lastQueriedCoords = useRef(null);
+
+  const resolveLocation = useCallback(async () => {
+    if (!userUid || !googleApiKey || !enabled) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout:            10_000,
+          maximumAge:         0,
+        });
+      });
+
+      const { latitude: lat, longitude: lng } = position.coords;
+
+      if (lastQueriedCoords.current) {
+        const { lat: prevLat, lng: prevLng } = lastQueriedCoords.current;
+        const distance = haversineDistanceMeters(prevLat, prevLng, lat, lng);
+
+        if (distance <= HAVERSINE_MOVEMENT_THRESHOLD_M) {
+          // No hubo movimiento significativo: mantenemos el resultado anterior
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      const cachedPlace = await lookupPlaceInCache(lat, lng);
+
+      let placeId, displayName, googleTypes, categoryId, categoryName;
+      let fromCache = false;
+
+      if (cachedPlace) {
+        ({ place_id: placeId, display_name: displayName, types: googleTypes, category_id: categoryId } = cachedPlace);
+        // Recuperamos el nombre de categoria para el contrato de retorno
+        const { data: catRow } = await supabase
+          .from('Categories')
+          .select('name')
+          .eq('id', categoryId)
+          .single();
+        categoryName = catRow?.name ?? '';
+        fromCache     = true;
+
+      } else {
+        const googlePlace = await fetchNearbyPlaceFromGoogle(lat, lng, googleApiKey);
+
+        if (!googlePlace) {
+          setLocationData(null);
+          setIsLoading(false);
+          return;
+        }
+
+        ({ placeId, displayName, types: googleTypes } = googlePlace);
+
+        
+        const resolved = await resolveCategoryFromDB(googleTypes);
+
+        if (!resolved) {
+          // El establecimiento no mapea a ninguna categoria de Hobi
+          setLocationData(null);
+          lastQueriedCoords.current = { lat, lng };
+          setIsLoading(false);
+          return;
+        }
+
+        ({ categoryId, categoryName } = resolved);
+
+        await savePlaceToCache(placeId, displayName, googleTypes, categoryId, lat, lng);
+      }
+
+      const bestCard = await resolveBestCard(userUid, categoryId);
+
+      lastQueriedCoords.current = { lat, lng };
+
+      setLocationData({
+        placeName:    displayName,
+        categoryId,
+        categoryName,
+        bestCard,
+        fromCache,
+      });
+
+    } catch (err) {
+      console.error('[Hobi Geofencing] Error en resolveLocation:', err.message);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userUid, googleApiKey, enabled]);
+
+  // Disparo inicial al montar el componente (si esta habilitado)
+  useEffect(() => {
+    resolveLocation();
+  }, [resolveLocation]);
+
+  return {
+    isLoading,
+    error,
+    locationData,
+    refresh: resolveLocation,
+  };
+}
