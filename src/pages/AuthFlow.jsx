@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Chrome,
-    Apple,
     ChevronRight,
     Check,
     CreditCard,
@@ -50,22 +48,6 @@ const InputGroup = ({ icon, ...props }) => (
             className="w-full bg-transparent py-5 font-bold text-white placeholder:text-white/30 outline-none text-sm"
         />
     </div>
-);
-
-// SPEC §6 — Control de Concurrencia: SocialButton también recibe disabled
-// para bloquear OAuth durante cualquier operación en curso.
-const SocialButton = ({ icon, text, onClick, disabled = false }) => (
-    <button
-        onClick={onClick}
-        disabled={disabled}
-        className="w-full py-5 px-6 bg-white/10 backdrop-blur-xl rounded-[1.8rem] border border-white/10 font-black text-white text-sm flex items-center justify-between group active:scale-[0.98] transition-all hover:bg-white/15 disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-        <div className="flex items-center gap-4">
-            <div className="bg-white/10 p-2.5 rounded-xl shadow-inner">{icon}</div>
-            <span className="tracking-tight">Entrar con {text}</span>
-        </div>
-        <ChevronRight size={18} className="text-white/30" />
-    </button>
 );
 
 const CardToggle = ({ card, isSelected, onToggle }) => (
@@ -223,13 +205,26 @@ export default function AuthFlow({ onFinish }) {
         }
     };
 
-    const handleGoogleAuth = async () => {
+    // -----------------------------------------------------------------------
+    // Recuperar contraseña
+    // -----------------------------------------------------------------------
+    const [resetSent, setResetSent] = useState(false);
+
+    const handleForgotPassword = async () => {
+        setErrorMessage('');
+        if (!email) {
+            setErrorMessage('Escribe tu correo primero.');
+            return;
+        }
         setLoading(true);
         try {
-            const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin,
+            });
             if (error) throw error;
+            setResetSent(true);
         } catch (err) {
-            setErrorMessage(err.message);
+            setErrorMessage(err.message || 'No pudimos enviar el correo de recuperación.');
         } finally {
             setLoading(false);
         }
@@ -237,6 +232,7 @@ export default function AuthFlow({ onFinish }) {
 
     const navigateTo = (destination) => {
         setErrorMessage('');
+        setResetSent(false);
         setView(destination);
     };
 
@@ -330,6 +326,16 @@ export default function AuthFlow({ onFinish }) {
                                     disabled={loading}
                                 />
 
+                                {view === 'login' && (
+                                    <button
+                                        onClick={() => navigateTo('forgot')}
+                                        disabled={loading}
+                                        className="w-full text-right text-blue-100/60 text-xs font-bold hover:text-white transition-colors disabled:opacity-50"
+                                    >
+                                        ¿Olvidaste tu contraseña?
+                                    </button>
+                                )}
+
                                 {/* SPEC §6 — Control de Concurrencia principal */}
                                 <ActionButton
                                     text={loading ? 'PROCESANDO...' : (view === 'login' ? 'ENTRAR' : 'CONTINUAR')}
@@ -337,25 +343,58 @@ export default function AuthFlow({ onFinish }) {
                                     disabled={loading}
                                     onClick={handleAuthAction}
                                 />
-
-                                <div className="py-6 flex items-center gap-4 text-white/20 text-[9px] font-black uppercase tracking-[0.3em]">
-                                    <div className="h-[1px] bg-white/10 flex-1" /> O <div className="h-[1px] bg-white/10 flex-1" />
-                                </div>
-
-                                {/* SPEC §6 — SocialButtons también bloqueados durante loading */}
-                                <SocialButton
-                                    icon={<Chrome size={20} />}
-                                    text="Google"
-                                    onClick={handleGoogleAuth}
-                                    disabled={loading}
-                                />
-                                <SocialButton
-                                    icon={<Apple size={22} />}
-                                    text="Apple ID"
-                                    onClick={() => {}}
-                                    disabled={loading}
-                                />
                             </div>
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* ── RECUPERAR CONTRASEÑA ─────────────────────────────────── */}
+                {view === 'forgot' && (
+                    <motion.div key="forgot" {...variants} className="flex-1 flex flex-col justify-center px-8 z-10">
+                        <div className="max-w-md mx-auto w-full">
+                            <button
+                                onClick={() => navigateTo('login')}
+                                disabled={loading}
+                                className="mb-8 p-3 bg-white/10 rounded-full text-white w-fit leading-none flex items-center justify-center transition-transform active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <ArrowLeft size={20} />
+                            </button>
+
+                            <h2 className="text-4xl font-black text-white tracking-tighter mb-2 leading-none">
+                                Recupera tu acceso
+                            </h2>
+                            <p className="text-blue-100/60 font-bold uppercase text-[10px] tracking-[0.2em] mb-6">
+                                Te mandamos un link a tu correo
+                            </p>
+
+                            {errorMessage && (
+                                <div className="mb-4 p-4 bg-rose-500/20 border border-rose-500/30 rounded-2xl text-rose-200 text-xs font-bold">
+                                    {errorMessage}
+                                </div>
+                            )}
+
+                            {resetSent ? (
+                                <div className="p-4 bg-emerald-500/20 border border-emerald-500/30 rounded-2xl text-emerald-100 text-xs font-bold">
+                                    Listo, revisa <span className="text-white">{email}</span> — te mandamos un link para poner una contraseña nueva. Si no lo ves, checa spam.
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <InputGroup
+                                        icon={<Mail size={18} />}
+                                        placeholder="Email"
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        disabled={loading}
+                                    />
+                                    <ActionButton
+                                        text={loading ? 'ENVIANDO...' : 'ENVIAR LINK DE RECUPERACIÓN'}
+                                        variant="white"
+                                        disabled={loading}
+                                        onClick={handleForgotPassword}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </motion.div>
                 )}
