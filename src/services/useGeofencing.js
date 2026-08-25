@@ -34,17 +34,18 @@ async function lookupPlaceInCache(lat, lng) {
 }
 
 
-async function savePlaceToCache(placeId, displayName, types, categoryId, lat, lng) {
+async function savePlaceToCache(placeId, displayName, types, categoryId, lat, lng, userUid) {
   const { error } = await supabase.from('Places_Cache').upsert(
     {
       place_id:     placeId,
       display_name: displayName,
-      types:        types,          
+      types:        types,
       category_id:  categoryId,
       lat:          lat,
       lng:          lng,
+      created_by:   userUid, // sin esto, Profile.jsx nunca puede contar "Aportes" reales
     },
-    { onConflict: 'place_id' }      
+    { onConflict: 'place_id' }
   );
 
   if (error) {
@@ -108,20 +109,37 @@ async function resolveCategoryFromDB(googleTypes) {
 }
 
 async function resolveBestCard(userUid, categoryId) {
-  const { data: walletCards, error } = await supabase
+  // User_Cards y Benefits_Matrix no tienen FK directa entre sí (ambas solo
+  // se relacionan vía Cards_Master), así que PostgREST no puede resolver un
+  // embed de las tres tablas en una sola consulta. Lo hacemos en dos pasos.
+  const { data: walletRows, error: walletError } = await supabase
     .from('User_Cards')
-    .select(`
-      card_id,
-      Cards_Master (bank_name, card_name),
-      Benefits_Matrix!inner (percentage, type)
-    `)
-    .eq('user_id', userUid)
-    .eq('Benefits_Matrix.category_id', categoryId)
-    .order('Benefits_Matrix.percentage', { ascending: false });
+    .select('card_id')
+    .eq('user_id', userUid);
 
-  if (error) throw new Error(`Error resolviendo tarjeta Ã³ptima: ${error.message}`);
+  if (walletError) throw new Error(`Error leyendo la wallet del usuario: ${walletError.message}`);
 
-  return walletCards && walletCards.length > 0 ? walletCards[0] : null;
+  const cardIds = (walletRows ?? []).map((row) => row.card_id);
+  if (cardIds.length === 0) return null;
+
+  const { data: bestRows, error: benefitsError } = await supabase
+    .from('Benefits_Matrix')
+    .select('card_id, percentage, type, Cards_Master (bank_name, card_name)')
+    .in('card_id', cardIds)
+    .eq('category_id', categoryId)
+    .order('percentage', { ascending: false })
+    .limit(1);
+
+  if (benefitsError) throw new Error(`Error resolviendo tarjeta óptima: ${benefitsError.message}`);
+
+  if (!bestRows || bestRows.length === 0) return null;
+
+  const best = bestRows[0];
+  return {
+    card_id: best.card_id,
+    Cards_Master: best.Cards_Master,
+    Benefits_Matrix: { percentage: best.percentage, type: best.type },
+  };
 }
 
 
@@ -201,7 +219,7 @@ export function useGeofencing({ userUid, googleApiKey, enabled = true }) {
 
         ({ categoryId, categoryName } = resolved);
 
-        await savePlaceToCache(placeId, displayName, googleTypes, categoryId, lat, lng);
+        await savePlaceToCache(placeId, displayName, googleTypes, categoryId, lat, lng, userUid);
       }
 
       const bestCard = await resolveBestCard(userUid, categoryId);

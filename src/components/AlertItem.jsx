@@ -7,14 +7,21 @@ export const AlertItem = ({ brand, location, category, card, cashback, time, ini
   const [feedback, setFeedback] = useState(null); 
 
   const handleFeedback = async (status) => {
-  setFeedback(status); 
+  setFeedback(status);
 
-  const { data, error } = await supabase
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    console.error("No hay sesión activa, no se puede guardar el feedback:", authError?.message);
+    return;
+  }
+
+  const { error } = await supabase
     .from('Feedback_Log')
     .insert([
-      { 
+      {
+        user_id: user.id,
         status: status === 'success' ? 'Yes' : 'No',
-        place_id: brand // Guardamos el nombre del comercio como referencia temporal
+        place_id: brand // TODO: usar el place_id real de Google una vez que Alerts.jsx muestre detecciones reales en vez de datos de ejemplo
       }
     ]);
 

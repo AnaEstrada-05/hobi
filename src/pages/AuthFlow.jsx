@@ -172,6 +172,15 @@ export default function AuthFlow({ onFinish }) {
                 });
                 if (error) throw error;
 
+                // Supabase puede regresar user:null sin error (p. ej. email
+                // duplicado con confirmación pendiente). Sin este guard,
+                // data.user.id truena con un TypeError en crudo.
+                if (!data.user) {
+                    throw new Error(
+                        'No pudimos crear la cuenta con ese correo. Prueba con otro o inicia sesión si ya tienes una cuenta.'
+                    );
+                }
+
                 // CORRECCIÓN CRÍTICA: persistimos el uid antes de cambiar de vista
                 // para que handleFinishRegistration pueda usarlo en el bulk insert.
                 setNewUserUid(data.user.id);
