@@ -274,7 +274,9 @@ export default function AuthFlow({ onFinish }) {
 
                 {/* ── LOGIN / SIGNUP ───────────────────────────────────────── */}
                 {(view === 'login' || view === 'signup') && (
-                    <motion.div key="form" {...variants} className="flex-1 flex flex-col justify-center px-8 z-10">
+                    <motion.div key="form" {...variants} className="flex-1 flex flex-col pt-16 pb-10 px-8 z-10 overflow-y-auto">
+                        {/* Encabezado: siempre arriba, tamaño fijo — la flecha
+                            nunca se mueve sin importar cuántos campos haya. */}
                         <div className="max-w-md mx-auto w-full">
                             {/* SPEC §6 — disabled={loading} en botón de retroceso
                                 para evitar navegación durante una llamada activa */}
@@ -289,17 +291,21 @@ export default function AuthFlow({ onFinish }) {
                             <h2 className="text-4xl font-black text-white tracking-tighter mb-2 leading-none">
                                 {view === 'login' ? 'Bienvenido de vuelta' : 'Crea tu perfil'}
                             </h2>
-                            <p className="text-blue-100/60 font-bold uppercase text-[10px] tracking-[0.2em] mb-6">
+                            <p className="text-blue-100/60 font-bold uppercase text-[10px] tracking-[0.2em]">
                                 {view === 'login' ? 'Ingresa tus datos' : 'Únete a la comunidad'}
                             </p>
+                        </div>
 
-                            {errorMessage && (
-                                <div className="mb-4 p-4 bg-rose-500/20 border border-rose-500/30 rounded-2xl text-rose-200 text-xs font-bold">
-                                    {errorMessage}
-                                </div>
-                            )}
+                        {/* Campos + botón centrados en el espacio que queda
+                            debajo del encabezado (no pegados al borde). */}
+                        <div className="flex-1 flex flex-col justify-center">
+                            <div className="max-w-md mx-auto w-full space-y-4">
+                                {errorMessage && (
+                                    <div className="p-4 bg-rose-500/20 border border-rose-500/30 rounded-2xl text-rose-200 text-xs font-bold">
+                                        {errorMessage}
+                                    </div>
+                                )}
 
-                            <div className="space-y-4">
                                 {view === 'signup' && (
                                     <InputGroup
                                         icon={<User size={18} />}
@@ -336,7 +342,6 @@ export default function AuthFlow({ onFinish }) {
                                     </button>
                                 )}
 
-                                {/* SPEC §6 — Control de Concurrencia principal */}
                                 <ActionButton
                                     text={loading ? 'PROCESANDO...' : (view === 'login' ? 'ENTRAR' : 'CONTINUAR')}
                                     variant="white"
@@ -350,7 +355,8 @@ export default function AuthFlow({ onFinish }) {
 
                 {/* ── RECUPERAR CONTRASEÑA ─────────────────────────────────── */}
                 {view === 'forgot' && (
-                    <motion.div key="forgot" {...variants} className="flex-1 flex flex-col justify-center px-8 z-10">
+                    <motion.div key="forgot" {...variants} className="flex-1 flex flex-col pt-16 pb-10 px-8 z-10 overflow-y-auto">
+                        {/* Encabezado: siempre arriba, tamaño fijo */}
                         <div className="max-w-md mx-auto w-full">
                             <button
                                 onClick={() => navigateTo('login')}
@@ -363,38 +369,43 @@ export default function AuthFlow({ onFinish }) {
                             <h2 className="text-4xl font-black text-white tracking-tighter mb-2 leading-none">
                                 Recupera tu acceso
                             </h2>
-                            <p className="text-blue-100/60 font-bold uppercase text-[10px] tracking-[0.2em] mb-6">
+                            <p className="text-blue-100/60 font-bold uppercase text-[10px] tracking-[0.2em]">
                                 Te mandamos un link a tu correo
                             </p>
+                        </div>
 
-                            {errorMessage && (
-                                <div className="mb-4 p-4 bg-rose-500/20 border border-rose-500/30 rounded-2xl text-rose-200 text-xs font-bold">
-                                    {errorMessage}
-                                </div>
-                            )}
+                        {/* Campo + botón centrados en el espacio debajo del encabezado. */}
+                        <div className="flex-1 flex flex-col justify-center">
+                            <div className="max-w-md mx-auto w-full space-y-4">
+                                {errorMessage && (
+                                    <div className="p-4 bg-rose-500/20 border border-rose-500/30 rounded-2xl text-rose-200 text-xs font-bold">
+                                        {errorMessage}
+                                    </div>
+                                )}
 
-                            {resetSent ? (
-                                <div className="p-4 bg-emerald-500/20 border border-emerald-500/30 rounded-2xl text-emerald-100 text-xs font-bold">
-                                    Listo, revisa <span className="text-white">{email}</span> — te mandamos un link para poner una contraseña nueva. Si no lo ves, checa spam.
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    <InputGroup
-                                        icon={<Mail size={18} />}
-                                        placeholder="Email"
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        disabled={loading}
-                                    />
-                                    <ActionButton
-                                        text={loading ? 'ENVIANDO...' : 'ENVIAR LINK DE RECUPERACIÓN'}
-                                        variant="white"
-                                        disabled={loading}
-                                        onClick={handleForgotPassword}
-                                    />
-                                </div>
-                            )}
+                                {resetSent ? (
+                                    <div className="p-4 bg-emerald-500/20 border border-emerald-500/30 rounded-2xl text-emerald-100 text-xs font-bold">
+                                        Listo, revisa <span className="text-white">{email}</span> — te mandamos un link para poner una contraseña nueva. Si no lo ves, checa spam.
+                                    </div>
+                                ) : (
+                                    <>
+                                        <InputGroup
+                                            icon={<Mail size={18} />}
+                                            placeholder="Email"
+                                            type="email"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            disabled={loading}
+                                        />
+                                        <ActionButton
+                                            text={loading ? 'ENVIANDO...' : 'ENVIAR LINK DE RECUPERACIÓN'}
+                                            variant="white"
+                                            disabled={loading}
+                                            onClick={handleForgotPassword}
+                                        />
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </motion.div>
                 )}
