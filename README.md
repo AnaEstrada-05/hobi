@@ -31,7 +31,7 @@
    ```
 2. Inicia el servidor de desarrollo:
    ```bash
-   npm install
+   npm run dev
    ```
 
 ## 📸 Preview de la Estructura
