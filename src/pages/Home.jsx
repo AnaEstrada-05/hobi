@@ -16,7 +16,6 @@ export default function Home() {
   const navigate = useNavigate();
   const [userUid, setUserUid] = useState(null);
   const [firstName, setFirstName] = useState("Usuario");
-  const googleApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   // 1. Efecto inicial para recuperar la sesión del usuario
   useEffect(() => {
@@ -57,7 +56,6 @@ export default function Home() {
   // ubicación fue concedido explícitamente.
   const { isLoading, error: geoError, locationData, refresh } = useGeofencing({
     userUid,
-    googleApiKey,
     enabled: !!userUid && locationGranted,
   });
 
