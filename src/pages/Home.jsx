@@ -2,9 +2,11 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
-import { useGeofencing } from "../services/useGeofencing"; 
+import { useGeofencing } from "../services/useGeofencing";
+import { useLocationConsent } from "../services/useLocationConsent";
 import { HomeHeader } from "../components/HomeHeader";
 import { LocationAlert } from "../components/LocationAlert";
+import { LocationConsent } from "../components/LocationConsent";
 import { QuickActions } from "../components/QuickActions";
 import { CardList } from "../components/CardList";
 import { MapPin, RefreshCw } from "lucide-react"; // Iconos para feedback visual
@@ -37,12 +39,19 @@ export default function Home() {
     fetchUserProfile();
   }, []);
 
-  // 2. Conexión con el motor de Geofencing
-  // Se activa automáticamente solo cuando ya tenemos el UID del usuario
+  // 2. Permiso de ubicación: se resuelve el estado actual al montar (sin
+  // disparar el prompt nativo solos) — el usuario decide cuándo pedirlo
+  // tocando "Activar ubicación" en LocationConsent.
+  const { status: locationStatus, request: requestLocation } = useLocationConsent();
+  const locationGranted = locationStatus === 'granted';
+
+  // 3. Conexión con el motor de Geofencing
+  // Se activa solo cuando ya tenemos el UID del usuario Y el permiso de
+  // ubicación fue concedido explícitamente.
   const { isLoading, error: geoError, locationData, refresh } = useGeofencing({
     userUid,
     googleApiKey,
-    enabled: !!userUid,
+    enabled: !!userUid && locationGranted,
   });
 
   return (
@@ -61,8 +70,10 @@ export default function Home() {
       
       <div className="max-w-xl mx-auto px-4 sm:px-6 -mt-8 relative z-20 space-y-4">
         
-        {/* 3. Renderizado Condicional del Estado de Ubicación */}
-        {isLoading ? (
+        {/* 4. Renderizado Condicional del Estado de Ubicación */}
+        {locationStatus === 'checking' ? null : !locationGranted ? (
+          <LocationConsent status={locationStatus} onRequest={requestLocation} />
+        ) : isLoading ? (
           <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between animate-pulse">
             <div className="flex items-center space-x-3">
               <div className="bg-blue-50 p-2 rounded-xl text-blue-500">
