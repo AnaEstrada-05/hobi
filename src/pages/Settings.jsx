@@ -152,6 +152,15 @@ export const SettingsPage = ({ onBack }) => {
               Bloqueaste el permiso desde el navegador — actívalo en los ajustes del sitio antes de reintentar aquí.
             </p>
           )}
+          {locationStatus === 'granted' && (
+            // Ninguna app web puede quitar un permiso de ubicación ya
+            // concedido — ni Chrome ni Safari exponen esa función en JS.
+            // Solo se puede revocar desde los ajustes del propio navegador,
+            // así que en vez de no dar ninguna opción, explicamos cómo.
+            <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
+              Para desactivarla, hazlo desde los ajustes de tu navegador para este sitio (el candado o "ⓘ" junto a la dirección web) — ninguna app puede quitarte un permiso ya concedido por su cuenta.
+            </p>
+          )}
         </div>
 
         {saveStatus === 'success' && (
