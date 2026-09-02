@@ -124,7 +124,7 @@ async function resolveBestCard(userUid, categoryId) {
 
   const { data: bestRows, error: benefitsError } = await supabase
     .from('Benefits_Matrix')
-    .select('card_id, percentage, type, Cards_Master (bank_name, card_name)')
+    .select('card_id, percentage, type, Cards_Master (bank_name, card_name, affiliate_url)')
     .in('card_id', cardIds)
     .eq('category_id', categoryId)
     .order('percentage', { ascending: false })
