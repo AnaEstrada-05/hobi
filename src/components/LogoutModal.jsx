@@ -2,7 +2,17 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut, AlertCircle } from 'lucide-react';
 
-export const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
+// title/message/confirmLabel son opcionales (con los valores de siempre
+// como default) para poder reutilizar este mismo modal en "cerrar sesión en
+// todos los dispositivos" (Security.jsx) sin duplicar el componente.
+export const LogoutModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  title = '¿Cerrar sesión?',
+  message = 'Tendrás que volver a ingresar tus credenciales para acceder a tus beneficios.',
+  confirmLabel = 'SÍ, CERRAR SESIÓN',
+}) => {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -28,17 +38,17 @@ export const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
                 <LogOut size={32} />
               </div>
               
-              <h3 className="text-xl font-black text-slate-900 mb-2">¿Cerrar sesión?</h3>
+              <h3 className="text-xl font-black text-slate-900 mb-2">{title}</h3>
               <p className="text-sm font-bold text-slate-400 leading-relaxed mb-8">
-                Tendrás que volver a ingresar tus credenciales para acceder a tus beneficios.
+                {message}
               </p>
 
               <div className="space-y-3">
-                <button 
+                <button
                   onClick={onConfirm}
                   className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200"
                 >
-                  SÍ, CERRAR SESIÓN
+                  {confirmLabel}
                 </button>
                 <button 
                   onClick={onClose}
