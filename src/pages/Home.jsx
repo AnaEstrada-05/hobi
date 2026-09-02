@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { useGeofencing } from "../services/useGeofencing"; 
 import { HomeHeader } from "../components/HomeHeader";
@@ -8,7 +9,8 @@ import { QuickActions } from "../components/QuickActions";
 import { CardList } from "../components/CardList";
 import { MapPin, RefreshCw } from "lucide-react"; // Iconos para feedback visual
 
-export default function Home({ setActiveTab }) {
+export default function Home() {
+  const navigate = useNavigate();
   const [userUid, setUserUid] = useState(null);
   const [firstName, setFirstName] = useState("Usuario");
   const googleApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -51,10 +53,10 @@ export default function Home({ setActiveTab }) {
       className="min-h-screen bg-gray-50 pb-32"
     >
       {/* Encabezado dinámico */}
-      <HomeHeader 
-        name={firstName} 
-        onWalletClick={() => setActiveTab('wallet')} 
-        onAlertsClick={() => setActiveTab('alertas')}
+      <HomeHeader
+        name={firstName}
+        onWalletClick={() => navigate('/wallet')}
+        onAlertsClick={() => navigate('/alertas')}
       />
       
       <div className="max-w-xl mx-auto px-4 sm:px-6 -mt-8 relative z-20 space-y-4">
@@ -120,8 +122,8 @@ export default function Home({ setActiveTab }) {
           </div>
         )}
 
-        <QuickActions setActiveTab={setActiveTab} />
-        <CardList onSeeAll={() => setActiveTab('wallet')} />
+        <QuickActions />
+        <CardList onSeeAll={() => navigate('/wallet')} />
       </div>
     </motion.div>
   );

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { User, Settings, Shield, CreditCard, LogOut, Award, ChevronRight, ArrowLeft } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { StatCard } from '../components/StatCard';
@@ -8,7 +9,8 @@ import { SecurityPage } from './Security';
 import { LogoutModal } from '../components/LogoutModal';
 
 // CORRECCIÓN: Agregamos onBack como prop recibida
-export default function Profile({ onBack, setActiveTab }) {
+export default function Profile({ onBack }) {
+  const navigate = useNavigate();
   const [subPage, setSubPage] = useState(null);
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
   
@@ -129,7 +131,7 @@ export default function Profile({ onBack, setActiveTab }) {
         <div className="max-w-xl mx-auto px-6 -mt-10 space-y-4">
           <div className="flex gap-3">
             <StatCard label="Aportes" value={loading ? "..." : contributionsCount.toString()} icon={Award} />
-            <button className="flex-1 text-left" onClick={() => setActiveTab('wallet')}>
+            <button className="flex-1 text-left" onClick={() => navigate('/wallet')}>
               <StatCard label="Cards" value={loading ? "..." : cardsCount.toString()} icon={CreditCard} />
             </button>
           </div>
