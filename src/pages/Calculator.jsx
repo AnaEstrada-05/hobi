@@ -4,11 +4,17 @@ import { Utensils, Fuel, ShoppingCart, Calculator as CalcIcon, RefreshCcw, Arrow
 import { CategoryInput } from '../components/CategoryInput';
 import { ResultCard } from '../components/ResultCard';
 import { supabase } from '../services/supabaseClient';
+import { trackEvent } from '../services/analytics';
 
 export default function Calculator({ onBack }) {
   const [expenses, setExpenses] = useState({ restaurantes: '', gasolina: '', super: '' });
   const [cardsMatrix, setCardsMatrix] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Analítica: uso de la Calculadora — ver issue KIN-151.
+  useEffect(() => {
+    trackEvent('calculator_opened');
+  }, []);
 
   useEffect(() => {
     const fetchMatrixData = async () => {
