@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { CreditCard, Calculator, ChevronRight, LayoutGrid } from 'lucide-react';
 
 const ActionCard = ({ title, subtitle, icon: Icon, delay = 0, onClick }) => (
@@ -23,7 +24,9 @@ const ActionCard = ({ title, subtitle, icon: Icon, delay = 0, onClick }) => (
   </motion.button>
 );
 
-export const QuickActions = ({ setActiveTab }) => {
+export const QuickActions = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="w-full py-2">
       <div className="flex items-center gap-2 mb-4">
@@ -33,8 +36,8 @@ export const QuickActions = ({ setActiveTab }) => {
         <h2 className="text-lg font-black text-slate-900 tracking-tight">Acciones rápidas</h2>
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <ActionCard title="Tarjetas" subtitle="Gestionar" icon={CreditCard} delay={0.1} onClick={() => setActiveTab('wallet')} />
-        <ActionCard title="Calculadora" subtitle="Gastos" icon={Calculator} delay={0.2} onClick={() => setActiveTab('calculator')} />
+        <ActionCard title="Tarjetas" subtitle="Gestionar" icon={CreditCard} delay={0.1} onClick={() => navigate('/wallet')} />
+        <ActionCard title="Calculadora" subtitle="Gastos" icon={Calculator} delay={0.2} onClick={() => navigate('/calculadora')} />
       </div>
     </div>
   );

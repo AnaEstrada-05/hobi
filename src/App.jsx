@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from './services/supabaseClient';
 
 // Importación de Páginas
@@ -13,10 +14,12 @@ import ResetPassword from './pages/ResetPassword';
 import { BottomNav } from './components/BottomNav';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('inicio');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [recoveryMode, setRecoveryMode] = useState(false);
+
+  const location = useLocation();
+  const navigate = useNavigate();
 
   // Sin esto, cualquier sesión ya iniciada (recargar la página, o volver de
   // un login con Google/Apple) se perdía y la app regresaba siempre a la
@@ -43,9 +46,15 @@ function App() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [activeTab]);
+  }, [location.pathname]);
 
-  const goBack = () => setActiveTab('inicio');
+  // Antes, "volver" siempre regresaba a la pestaña de inicio, porque toda la
+  // navegación vivía en un único estado `activeTab` en memoria (nunca en la
+  // URL). Con rutas reales, goHome conserva ese mismo comportamiento para los
+  // botones de "atrás" propios de cada sección — mientras que ahora el botón
+  // atrás del navegador (o el gesto de swipe en móvil) sí recorre el
+  // historial real en vez de sacar a la persona de la app.
+  const goHome = () => navigate('/');
 
   if (checkingSession) {
     return (
@@ -66,29 +75,19 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-50 overflow-x-hidden font-sans">
       <AnimatePresence mode="wait">
-        
-        {activeTab === 'inicio' && (
-          <Home key="home" setActiveTab={setActiveTab} />
-        )}
-
-        {activeTab === 'wallet' && (
-          <Wallet key="wallet" onBack={goBack} />
-        )}
-
-        {activeTab === 'calculator' && (
-          <Calculator key="calculator" onBack={goBack} />
-        )}
-
-        {activeTab === 'alertas' && (
-          <Alerts key="alertas" onBack={goBack} />
-        )}
-
-        {activeTab === 'perfil' && (
-          <Profile key="perfil" onBack={goBack} setActiveTab={setActiveTab} />
-        )}
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={<Home key="home" />} />
+          <Route path="/wallet" element={<Wallet key="wallet" onBack={goHome} />} />
+          <Route path="/calculadora" element={<Calculator key="calculator" onBack={goHome} />} />
+          <Route path="/alertas" element={<Alerts key="alertas" onBack={goHome} />} />
+          <Route path="/perfil" element={<Profile key="perfil" onBack={goHome} />} />
+          {/* Cualquier ruta desconocida (link viejo, typo, etc.) regresa a inicio
+              en vez de mostrar una pantalla en blanco. */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </AnimatePresence>
 
-      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      <BottomNav />
     </div>
   );
 }
