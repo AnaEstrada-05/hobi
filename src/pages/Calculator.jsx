@@ -18,7 +18,7 @@ export default function Calculator({ onBack }) {
         // 1. Traemos las tarjetas master
         const { data: masterData, error: masterError } = await supabase
           .from('Cards_Master')
-          .select('id, bank_name, card_name, annual_fee');
+          .select('id, bank_name, card_name, annual_fee, affiliate_url');
 
         if (masterError) throw masterError;
 
@@ -42,6 +42,7 @@ export default function Calculator({ onBack }) {
             id: card.id,
             name: `${card.bank_name} ${card.card_name}`,
             annualFee: card.annual_fee,
+            affiliateUrl: card.affiliate_url,
             color: color,
             cashbackRates: { restaurantes: 0, gasolina: 0, super: 0 }
           };

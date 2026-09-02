@@ -1,11 +1,14 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, Zap, ChevronRight, Navigation } from 'lucide-react';
+import { ApplyCardButton } from './ApplyCardButton';
 
-export const LocationAlert = ({ 
-  place = "Starbucks", 
-  location = "Centro Comercial Santa Fe", 
-  offer = "5% con Santander LikeU" 
+export const LocationAlert = ({
+  place = "Starbucks",
+  location = "Centro Comercial Santa Fe",
+  offer = "5% con Santander LikeU",
+  cardId,
+  affiliateUrl,
 }) => {
   return (
     <motion.div 
@@ -61,7 +64,7 @@ export const LocationAlert = ({
             </div>
           </div>
 
-          <motion.div 
+          <motion.div
             whileHover={{ scale: 1.01, backgroundColor: '#52ea90' }}
             className="w-full bg-[#4ade80] text-[#1e4d3a] font-black py-4 px-4 sm:px-6 rounded-xl sm:rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-green-900/10 transition-colors"
           >
@@ -69,7 +72,9 @@ export const LocationAlert = ({
               {offer}
             </span>
           </motion.div>
-          
+
+          <ApplyCardButton cardId={cardId} affiliateUrl={affiliateUrl} source="location_alert" />
+
         </div>
       </div>
     </motion.div>
