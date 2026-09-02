@@ -105,9 +105,14 @@ export default function Profile({ onBack }) {
       <AnimatePresence>
         {subPage === 'settings' && (
           <SettingsPage
-            onBack={() => {
-              setSubPage(null);
-              fetchProfileData(); // refresca por si se guardó un nombre nuevo
+            onBack={() => setSubPage(null)}
+            // Actualiza el nombre en el momento exacto en que se guarda —
+            // no hace falta esperar a cerrar Ajustes ni volver a pedirle el
+            // usuario a Supabase, así se ve el cambio de inmediato.
+            onSaved={({ fullName }) => {
+              if (fullName) {
+                setUserData((prev) => ({ ...prev, name: fullName }));
+              }
             }}
           />
         )}

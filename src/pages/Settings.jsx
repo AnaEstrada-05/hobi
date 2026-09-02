@@ -4,7 +4,7 @@ import { ChevronLeft, Bell, User, Save, MapPin, Check, AlertCircle } from 'lucid
 import { supabase } from '../services/supabaseClient';
 import { queryLocationPermission, requestLocationAccess } from '../services/useLocationConsent';
 
-export const SettingsPage = ({ onBack }) => {
+export const SettingsPage = ({ onBack, onSaved }) => {
   // Antes esta pantalla era enteramente decorativa: el nombre venía
   // hardcodeado ("Alex Rivera"), el toggle de notificaciones solo vivía en
   // estado local de React, y "Guardar Cambios" no tenía onClick — no hacía
@@ -70,6 +70,11 @@ export const SettingsPage = ({ onBack }) => {
       if (error) throw error;
 
       setSaveStatus('success');
+      // Le pasamos el valor ya guardado directo a quien nos montó (Profile),
+      // en vez de esperar a que vuelva a pedirle el usuario a Supabase — así
+      // el nombre se actualiza al instante, sin depender de un round-trip
+      // de red extra ni de salir y volver a entrar a esta pantalla.
+      onSaved?.({ fullName: fullName.trim(), notificationsEnabled: notifs });
     } catch (err) {
       setSaveStatus('error');
       setSaveError(err.message || 'No pudimos guardar tus cambios.');
