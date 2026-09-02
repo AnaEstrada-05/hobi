@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { ApplyCardButton } from './ApplyCardButton';
 
 export const ResultCard = ({ card, cashbackEarned }) => {
   const annualCashback = (cashbackEarned || 0) * 12;
@@ -31,11 +32,13 @@ export const ResultCard = ({ card, cashbackEarned }) => {
       <div className={`mt-5 p-4 rounded-2xl flex items-center gap-3 ${isProfitable ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
         {isProfitable ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
         <p className="text-[11px] font-bold">
-          {isProfitable 
-            ? `¡Ganancia de $${netProfit.toLocaleString()}!` 
+          {isProfitable
+            ? `¡Ganancia de $${netProfit.toLocaleString()}!`
             : `Faltan $${Math.abs(netProfit).toLocaleString()}`}
         </p>
       </div>
+
+      <ApplyCardButton cardId={card.id} affiliateUrl={card.affiliateUrl} source="calculator" className="mt-4" />
     </motion.div>
   );
 };
