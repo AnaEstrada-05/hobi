@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import logo from "../assets/logo_white.png";
 import { supabase } from '../services/supabaseClient';
+import { signupFlags } from '../services/signupFlags';
 
 // ---------------------------------------------------------------------------
 // Sub-componentes de UI (sin cambios de diseño)
@@ -147,17 +148,27 @@ export default function AuthFlow({ onFinish }) {
                 if (error) throw error;
                 onFinish();
             } else if (view === 'signup') {
+                // Se activa ANTES de llamar a signUp(): Supabase crea la
+                // sesión en el mismo instante en que signUp() resuelve, así
+                // que si prendiéramos la bandera después, la ventana de
+                // riesgo ya se habría pasado.
+                signupFlags.inProgress = true;
+
                 const { data, error } = await supabase.auth.signUp({
                     email,
                     password,
                     options: { data: { full_name: fullName } },
                 });
-                if (error) throw error;
+                if (error) {
+                    signupFlags.inProgress = false;
+                    throw error;
+                }
 
                 // Supabase puede regresar user:null sin error (p. ej. email
                 // duplicado con confirmación pendiente). Sin este guard,
                 // data.user.id truena con un TypeError en crudo.
                 if (!data.user) {
+                    signupFlags.inProgress = false;
                     throw new Error(
                         'No pudimos crear la cuenta con ese correo. Prueba con otro o inicia sesión si ya tienes una cuenta.'
                     );
@@ -194,7 +205,10 @@ export default function AuthFlow({ onFinish }) {
             const { error } = await supabase.from('User_Cards').insert(rows);
             if (error) throw error;
 
-            // Solo invocamos onFinish() tras confirmar el insert exitoso.
+            // Hasta aquí sí queremos que App.jsx trate la sesión como
+            // autenticada de verdad — se apaga la bandera justo antes de
+            // avisarle que ya puede mandar a Inicio.
+            signupFlags.inProgress = false;
             onFinish();
         } catch (err) {
             setErrorMessage(

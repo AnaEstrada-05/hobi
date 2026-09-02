@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from './services/supabaseClient';
+import { signupFlags } from './services/signupFlags';
 
 // Importación de Páginas
 import Home from './pages/Home';
@@ -38,6 +39,13 @@ function App() {
       if (event === 'PASSWORD_RECOVERY') {
         setRecoveryMode(true);
       }
+
+      // supabase.auth.signUp() crea sesión real de inmediato en este
+      // proyecto, lo cual dispara este mismo listener a media mitad del
+      // registro — sin este check, un usuario nuevo saltaba directo a
+      // Inicio sin pasar nunca por "elige tus tarjetas" en AuthFlow.jsx.
+      if (signupFlags.inProgress) return;
+
       setIsAuthenticated(!!session);
     });
 
