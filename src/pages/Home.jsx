@@ -88,14 +88,16 @@ export default function Home() {
         ) : locationData ? (
           /* Puntos de venta reales detectados */
           <div className="relative group">
-            <LocationAlert 
-              place={locationData.placeName} 
-              location={locationData.categoryName} 
+            <LocationAlert
+              place={locationData.placeName}
+              location={locationData.categoryName}
               offer={
-                locationData.bestCard 
+                locationData.bestCard
                   ? `${locationData.bestCard.Benefits_Matrix.percentage}% con ${locationData.bestCard.Cards_Master.card_name}`
                   : "Sin beneficios disponibles aquí"
-              } 
+              }
+              cardId={locationData.bestCard?.card_id}
+              affiliateUrl={locationData.bestCard?.Cards_Master?.affiliate_url}
             />
             {/* Pequeño indicador discreto si la info vino de tu Places_Cache */}
             {locationData.fromCache && (

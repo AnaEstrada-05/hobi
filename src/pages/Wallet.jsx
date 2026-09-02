@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, X, ArrowLeft, Star, Percent, Info, ChevronRight, Check, CreditCard, AlertTriangle } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
+import { ApplyCardButton } from '../components/ApplyCardButton';
 
 // ---------------------------------------------------------------------------
 // POPUP DE CONFIRMACIÓN DE ELIMINACIÓN
@@ -108,7 +109,8 @@ const Wallet = ({ onBack }) => {
               id,
               bank_name,
               card_name,
-              annual_fee
+              annual_fee,
+              affiliate_url
             )
           `)
           .eq('user_id', user.id);
@@ -117,7 +119,7 @@ const Wallet = ({ onBack }) => {
         // Catálogo completo para el modal
         const { data: cardsMaster, error: masterError } = await supabase
           .from('Cards_Master')
-          .select('id, bank_name, card_name, annual_fee');
+          .select('id, bank_name, card_name, annual_fee, affiliate_url');
         if (masterError) throw masterError;
 
         const formatCard = (card) => {
@@ -142,6 +144,7 @@ const Wallet = ({ onBack }) => {
             color,
             anualidad: card.annual_fee === 0 ? "$0 MXN" : `$${card.annual_fee.toLocaleString()} MXN`,
             benefits: benefitsList,
+            affiliateUrl: card.affiliate_url,
           };
         };
 
@@ -368,6 +371,12 @@ const Wallet = ({ onBack }) => {
                   </div>
                   <div className="p-4 bg-amber-50 rounded-2xl text-amber-600"><Star size={24} fill="currentColor" /></div>
                 </div>
+
+                <ApplyCardButton
+                  cardId={selectedCard.id}
+                  affiliateUrl={selectedCard.affiliateUrl}
+                  source="wallet"
+                />
               </div>
             </motion.div>
           </div>

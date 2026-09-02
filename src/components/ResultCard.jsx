@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle2, AlertCircle, HelpCircle } from 'lucide-react';
+import { ApplyCardButton } from './ApplyCardButton';
 
 // Antes, una tarjeta sin ninguna tarifa cargada en Benefits_Matrix (ej.
 // BBVA Azul, Nu Mastercard Gold) mostraba "$0 / Faltan $0" — matemáticamente
@@ -57,6 +58,10 @@ export const ResultCard = ({ card, cashbackEarned, hasAnyBenefitData, hasCalcula
           </div>
         </>
       )}
+
+      {/* Fuera del condicional a propósito: puedes solicitar la tarjeta
+          aunque todavía no tengamos sus datos de cashback cargados. */}
+      <ApplyCardButton cardId={card.id} affiliateUrl={card.affiliateUrl} source="calculator" className="mt-4" />
     </motion.div>
   );
 };
