@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { useGeofencing } from "../services/useGeofencing";
 import { useLocationConsent } from "../services/useLocationConsent";
+import { trackEvent } from "../services/analytics";
 import { HomeHeader } from "../components/HomeHeader";
 import { LocationAlert } from "../components/LocationAlert";
 import { LocationConsent } from "../components/LocationConsent";
@@ -38,6 +39,12 @@ export default function Home() {
     fetchUserProfile();
   }, []);
 
+  // Analítica: "apertura de app" — sin esto no había forma de saber
+  // cuánta gente realmente abre Hobi. Ver issue KIN-151.
+  useEffect(() => {
+    trackEvent('app_opened');
+  }, []);
+
   // 2. Permiso de ubicación: se resuelve el estado actual al montar (sin
   // disparar el prompt nativo solos) — el usuario decide cuándo pedirlo
   // tocando "Activar ubicación" en LocationConsent.
@@ -51,6 +58,29 @@ export default function Home() {
     userUid,
     enabled: !!userUid && locationGranted,
   });
+
+  // Analítica: cada vez que el geofencing termina un intento (isLoading
+  // true -> false, sea el primero al abrir la app o uno posterior por
+  // movimiento), registramos si se le mostró una recomendación real, una
+  // sin beneficio, o si de plano no se detectó ningún lugar cercano — sin
+  // esto no había forma de saber qué tan seguido pasa cada caso. Ver
+  // issue KIN-151.
+  const wasLoadingRef = useRef(isLoading);
+  useEffect(() => {
+    if (wasLoadingRef.current && !isLoading) {
+      if (locationData?.bestCard) {
+        trackEvent('recommendation_shown', {
+          category: locationData.categoryName,
+          percentage: locationData.bestCard.Benefits_Matrix?.percentage,
+        });
+      } else if (locationData) {
+        trackEvent('recommendation_empty', { category: locationData.categoryName });
+      } else {
+        trackEvent('no_place_detected');
+      }
+    }
+    wasLoadingRef.current = isLoading;
+  }, [isLoading, locationData]);
 
   return (
     <motion.div 

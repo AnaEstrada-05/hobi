@@ -13,6 +13,7 @@ import Profile from './pages/Profile';
 import AuthFlow from './pages/AuthFlow';
 import ResetPassword from './pages/ResetPassword';
 import { BottomNav } from './components/BottomNav';
+import { FeedbackButton } from './components/FeedbackButton';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -95,6 +96,7 @@ function App() {
         </Routes>
       </AnimatePresence>
 
+      <FeedbackButton />
       <BottomNav />
     </div>
   );
