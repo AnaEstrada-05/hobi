@@ -42,41 +42,45 @@ export default function Profile({ onBack }) {
 
   const rank = getRankConfig(contributionsCount);
 
-  useEffect(() => {
-    const fetchProfileData = async () => {
-      try {
-        setLoading(true);
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError) throw authError;
+  // Se saca del useEffect para poder volver a llamarla al regresar de
+  // Ajustes — sin esto, Profile no se entera cuando SettingsPage guarda un
+  // nombre nuevo, porque Profile nunca se desmonta al abrir/cerrar el
+  // subPage (solo cambia el estado local `subPage`).
+  const fetchProfileData = async () => {
+    try {
+      setLoading(true);
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
 
-        if (user) {
-          const fullName = user.user_metadata?.full_name || 'Usuario Hobi';
-          setUserData({
-            name: fullName,
-            email: user.email || '',
-          });
+      if (user) {
+        const fullName = user.user_metadata?.full_name || 'Usuario Hobi';
+        setUserData({
+          name: fullName,
+          email: user.email || '',
+        });
 
-          const { count: cardsCountResult } = await supabase
-            .from('User_Cards')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', user.id);
+        const { count: cardsCountResult } = await supabase
+          .from('User_Cards')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id);
 
-          setCardsCount(cardsCountResult || 0);
+        setCardsCount(cardsCountResult || 0);
 
-          const { count: geoCountResult } = await supabase
-            .from('Places_Cache')
-            .select('*', { count: 'exact', head: true })
-            .eq('created_by', user.id);
+        const { count: geoCountResult } = await supabase
+          .from('Places_Cache')
+          .select('*', { count: 'exact', head: true })
+          .eq('created_by', user.id);
 
-          setContributionsCount(geoCountResult || 0);
-        }
-      } catch (err) {
-        console.error('Error al cargar datos reales en el perfil:', err.message);
-      } finally {
-        setLoading(false);
+        setContributionsCount(geoCountResult || 0);
       }
-    };
+    } catch (err) {
+      console.error('Error al cargar datos reales en el perfil:', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchProfileData();
   }, []);
 
@@ -99,7 +103,19 @@ export default function Profile({ onBack }) {
       />
 
       <AnimatePresence>
-        {subPage === 'settings' && <SettingsPage onBack={() => setSubPage(null)} />}
+        {subPage === 'settings' && (
+          <SettingsPage
+            onBack={() => setSubPage(null)}
+            // Actualiza el nombre en el momento exacto en que se guarda —
+            // no hace falta esperar a cerrar Ajustes ni volver a pedirle el
+            // usuario a Supabase, así se ve el cambio de inmediato.
+            onSaved={({ fullName }) => {
+              if (fullName) {
+                setUserData((prev) => ({ ...prev, name: fullName }));
+              }
+            }}
+          />
+        )}
         {subPage === 'security' && <SecurityPage onBack={() => setSubPage(null)} />}
       </AnimatePresence>
 
