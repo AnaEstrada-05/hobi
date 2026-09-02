@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Radar, Sparkles, ShieldCheck, ArrowLeft, ChevronRight } from 'lucide-react';
-import { AlertItem } from '../components/Alertitem';
+import { AlertItem } from '../components/AlertItem';
 // Conexión a la base de datos real
 import { supabase } from '../services/supabaseClient';
 

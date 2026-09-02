@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Chrome,
-    Apple,
     ChevronRight,
     Check,
     CreditCard,
@@ -50,22 +48,6 @@ const InputGroup = ({ icon, ...props }) => (
             className="w-full bg-transparent py-5 font-bold text-white placeholder:text-white/30 outline-none text-sm"
         />
     </div>
-);
-
-// SPEC §6 — Control de Concurrencia: SocialButton también recibe disabled
-// para bloquear OAuth durante cualquier operación en curso.
-const SocialButton = ({ icon, text, onClick, disabled = false }) => (
-    <button
-        onClick={onClick}
-        disabled={disabled}
-        className="w-full py-5 px-6 bg-white/10 backdrop-blur-xl rounded-[1.8rem] border border-white/10 font-black text-white text-sm flex items-center justify-between group active:scale-[0.98] transition-all hover:bg-white/15 disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-        <div className="flex items-center gap-4">
-            <div className="bg-white/10 p-2.5 rounded-xl shadow-inner">{icon}</div>
-            <span className="tracking-tight">Entrar con {text}</span>
-        </div>
-        <ChevronRight size={18} className="text-white/30" />
-    </button>
 );
 
 const CardToggle = ({ card, isSelected, onToggle }) => (
@@ -172,6 +154,15 @@ export default function AuthFlow({ onFinish }) {
                 });
                 if (error) throw error;
 
+                // Supabase puede regresar user:null sin error (p. ej. email
+                // duplicado con confirmación pendiente). Sin este guard,
+                // data.user.id truena con un TypeError en crudo.
+                if (!data.user) {
+                    throw new Error(
+                        'No pudimos crear la cuenta con ese correo. Prueba con otro o inicia sesión si ya tienes una cuenta.'
+                    );
+                }
+
                 // CORRECCIÓN CRÍTICA: persistimos el uid antes de cambiar de vista
                 // para que handleFinishRegistration pueda usarlo en el bulk insert.
                 setNewUserUid(data.user.id);
@@ -214,13 +205,26 @@ export default function AuthFlow({ onFinish }) {
         }
     };
 
-    const handleGoogleAuth = async () => {
+    // -----------------------------------------------------------------------
+    // Recuperar contraseña
+    // -----------------------------------------------------------------------
+    const [resetSent, setResetSent] = useState(false);
+
+    const handleForgotPassword = async () => {
+        setErrorMessage('');
+        if (!email) {
+            setErrorMessage('Escribe tu correo primero.');
+            return;
+        }
         setLoading(true);
         try {
-            const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin,
+            });
             if (error) throw error;
+            setResetSent(true);
         } catch (err) {
-            setErrorMessage(err.message);
+            setErrorMessage(err.message || 'No pudimos enviar el correo de recuperación.');
         } finally {
             setLoading(false);
         }
@@ -228,6 +232,7 @@ export default function AuthFlow({ onFinish }) {
 
     const navigateTo = (destination) => {
         setErrorMessage('');
+        setResetSent(false);
         setView(destination);
     };
 
@@ -269,7 +274,9 @@ export default function AuthFlow({ onFinish }) {
 
                 {/* ── LOGIN / SIGNUP ───────────────────────────────────────── */}
                 {(view === 'login' || view === 'signup') && (
-                    <motion.div key="form" {...variants} className="flex-1 flex flex-col justify-center px-8 z-10">
+                    <motion.div key="form" {...variants} className="flex-1 flex flex-col pt-16 pb-10 px-8 z-10 overflow-y-auto">
+                        {/* Encabezado: siempre arriba, tamaño fijo — la flecha
+                            nunca se mueve sin importar cuántos campos haya. */}
                         <div className="max-w-md mx-auto w-full">
                             {/* SPEC §6 — disabled={loading} en botón de retroceso
                                 para evitar navegación durante una llamada activa */}
@@ -284,17 +291,21 @@ export default function AuthFlow({ onFinish }) {
                             <h2 className="text-4xl font-black text-white tracking-tighter mb-2 leading-none">
                                 {view === 'login' ? 'Bienvenido de vuelta' : 'Crea tu perfil'}
                             </h2>
-                            <p className="text-blue-100/60 font-bold uppercase text-[10px] tracking-[0.2em] mb-6">
+                            <p className="text-blue-100/60 font-bold uppercase text-[10px] tracking-[0.2em]">
                                 {view === 'login' ? 'Ingresa tus datos' : 'Únete a la comunidad'}
                             </p>
+                        </div>
 
-                            {errorMessage && (
-                                <div className="mb-4 p-4 bg-rose-500/20 border border-rose-500/30 rounded-2xl text-rose-200 text-xs font-bold">
-                                    {errorMessage}
-                                </div>
-                            )}
+                        {/* Campos + botón centrados en el espacio que queda
+                            debajo del encabezado (no pegados al borde). */}
+                        <div className="flex-1 flex flex-col justify-center">
+                            <div className="max-w-md mx-auto w-full space-y-4">
+                                {errorMessage && (
+                                    <div className="p-4 bg-rose-500/20 border border-rose-500/30 rounded-2xl text-rose-200 text-xs font-bold">
+                                        {errorMessage}
+                                    </div>
+                                )}
 
-                            <div className="space-y-4">
                                 {view === 'signup' && (
                                     <InputGroup
                                         icon={<User size={18} />}
@@ -321,31 +332,79 @@ export default function AuthFlow({ onFinish }) {
                                     disabled={loading}
                                 />
 
-                                {/* SPEC §6 — Control de Concurrencia principal */}
+                                {view === 'login' && (
+                                    <button
+                                        onClick={() => navigateTo('forgot')}
+                                        disabled={loading}
+                                        className="w-full text-right text-blue-100/60 text-xs font-bold hover:text-white transition-colors disabled:opacity-50"
+                                    >
+                                        ¿Olvidaste tu contraseña?
+                                    </button>
+                                )}
+
                                 <ActionButton
                                     text={loading ? 'PROCESANDO...' : (view === 'login' ? 'ENTRAR' : 'CONTINUAR')}
                                     variant="white"
                                     disabled={loading}
                                     onClick={handleAuthAction}
                                 />
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
 
-                                <div className="py-6 flex items-center gap-4 text-white/20 text-[9px] font-black uppercase tracking-[0.3em]">
-                                    <div className="h-[1px] bg-white/10 flex-1" /> O <div className="h-[1px] bg-white/10 flex-1" />
-                                </div>
+                {/* ── RECUPERAR CONTRASEÑA ─────────────────────────────────── */}
+                {view === 'forgot' && (
+                    <motion.div key="forgot" {...variants} className="flex-1 flex flex-col pt-16 pb-10 px-8 z-10 overflow-y-auto">
+                        {/* Encabezado: siempre arriba, tamaño fijo */}
+                        <div className="max-w-md mx-auto w-full">
+                            <button
+                                onClick={() => navigateTo('login')}
+                                disabled={loading}
+                                className="mb-8 p-3 bg-white/10 rounded-full text-white w-fit leading-none flex items-center justify-center transition-transform active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <ArrowLeft size={20} />
+                            </button>
 
-                                {/* SPEC §6 — SocialButtons también bloqueados durante loading */}
-                                <SocialButton
-                                    icon={<Chrome size={20} />}
-                                    text="Google"
-                                    onClick={handleGoogleAuth}
-                                    disabled={loading}
-                                />
-                                <SocialButton
-                                    icon={<Apple size={22} />}
-                                    text="Apple ID"
-                                    onClick={() => {}}
-                                    disabled={loading}
-                                />
+                            <h2 className="text-4xl font-black text-white tracking-tighter mb-2 leading-none">
+                                Recupera tu acceso
+                            </h2>
+                            <p className="text-blue-100/60 font-bold uppercase text-[10px] tracking-[0.2em]">
+                                Te mandamos un link a tu correo
+                            </p>
+                        </div>
+
+                        {/* Campo + botón centrados en el espacio debajo del encabezado. */}
+                        <div className="flex-1 flex flex-col justify-center">
+                            <div className="max-w-md mx-auto w-full space-y-4">
+                                {errorMessage && (
+                                    <div className="p-4 bg-rose-500/20 border border-rose-500/30 rounded-2xl text-rose-200 text-xs font-bold">
+                                        {errorMessage}
+                                    </div>
+                                )}
+
+                                {resetSent ? (
+                                    <div className="p-4 bg-emerald-500/20 border border-emerald-500/30 rounded-2xl text-emerald-100 text-xs font-bold">
+                                        Listo, revisa <span className="text-white">{email}</span> — te mandamos un link para poner una contraseña nueva. Si no lo ves, checa spam.
+                                    </div>
+                                ) : (
+                                    <>
+                                        <InputGroup
+                                            icon={<Mail size={18} />}
+                                            placeholder="Email"
+                                            type="email"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            disabled={loading}
+                                        />
+                                        <ActionButton
+                                            text={loading ? 'ENVIANDO...' : 'ENVIAR LINK DE RECUPERACIÓN'}
+                                            variant="white"
+                                            disabled={loading}
+                                            onClick={handleForgotPassword}
+                                        />
+                                    </>
+                                )}
                             </div>
                         </div>
                     </motion.div>
