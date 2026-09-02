@@ -3,7 +3,6 @@ import { supabase } from './supabaseClient';
 
 const HAVERSINE_MOVEMENT_THRESHOLD_M = 25;
 const CACHE_LOOKUP_RADIUS_M          = 35;
-const GOOGLE_PLACES_NEARBY_ENDPOINT  = 'https://places.googleapis.com/v1/places:searchNearby';
 
 
 function haversineDistanceMeters(lat1, lng1, lat2, lng2) {
@@ -53,35 +52,26 @@ async function savePlaceToCache(placeId, displayName, types, categoryId, lat, ln
   }
 }
 
-async function fetchNearbyPlaceFromGoogle(lat, lng, apiKey) {
-  const response = await fetch(GOOGLE_PLACES_NEARBY_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type':     'application/json',
-      'X-Goog-FieldMask': 'places.displayName,places.types,places.id',
-      'X-Goog-Api-Key':   apiKey,
-    },
-    body: JSON.stringify({
-      locationRestriction: {
-        circle: {
-          center: { latitude: lat, longitude: lng },
-          radius: 50.0,
-        },
-      },
-      maxResultCount: 1,
-    }),
+// La búsqueda en Google Places ya no se hace desde el navegador: antes esta
+// función llamaba directo a Google con una API key embebida en el bundle
+// (VITE_GOOGLE_MAPS_API_KEY), visible para cualquiera que abriera el código
+// fuente servido. Ahora la Edge Function `places-nearby` hace esa llamada
+// del lado del servidor, usando la key como secret de Supabase — ver
+// supabase/functions/places-nearby/index.ts.
+async function fetchNearbyPlaceFromGoogle(lat, lng) {
+  const { data, error } = await supabase.functions.invoke('places-nearby', {
+    body: { lat, lng },
   });
 
-  if (!response.ok) {
-    const errBody = await response.text();
-    throw new Error(`Google Places API error ${response.status}: ${errBody}`);
+  if (error) {
+    throw new Error(`Error consultando places-nearby: ${error.message}`);
   }
+  if (data?.error) {
+    throw new Error(`places-nearby: ${data.error}`);
+  }
+  if (!data?.places || data.places.length === 0) return null;
 
-  const json = await response.json();
-
-  if (!json.places || json.places.length === 0) return null;
-
-  const place = json.places[0];
+  const place = data.places[0];
   return {
     placeId:     place.id,
     displayName: place.displayName?.text ?? 'Establecimiento desconocido',
@@ -144,7 +134,7 @@ async function resolveBestCard(userUid, categoryId) {
 
 
 // HOOK PRINCIPAL 
-export function useGeofencing({ userUid, googleApiKey, enabled = true }) {
+export function useGeofencing({ userUid, enabled = true }) {
   const [isLoading,    setIsLoading]    = useState(false);
   const [error,        setError]        = useState(null);
   const [locationData, setLocationData] = useState(null);
@@ -152,7 +142,7 @@ export function useGeofencing({ userUid, googleApiKey, enabled = true }) {
   const lastQueriedCoords = useRef(null);
 
   const resolveLocation = useCallback(async () => {
-    if (!userUid || !googleApiKey || !enabled) return;
+    if (!userUid || !enabled) return;
 
     setIsLoading(true);
     setError(null);
@@ -196,7 +186,7 @@ export function useGeofencing({ userUid, googleApiKey, enabled = true }) {
         fromCache     = true;
 
       } else {
-        const googlePlace = await fetchNearbyPlaceFromGoogle(lat, lng, googleApiKey);
+        const googlePlace = await fetchNearbyPlaceFromGoogle(lat, lng);
 
         if (!googlePlace) {
           setLocationData(null);
@@ -240,7 +230,7 @@ export function useGeofencing({ userUid, googleApiKey, enabled = true }) {
     } finally {
       setIsLoading(false);
     }
-  }, [userUid, googleApiKey, enabled]);
+  }, [userUid, enabled]);
 
   // Disparo inicial al montar el componente (si esta habilitado)
   useEffect(() => {
