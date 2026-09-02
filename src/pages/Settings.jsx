@@ -1,9 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, Bell, Moon, User, Save } from 'lucide-react';
+import { ChevronLeft, Bell, Moon, User, Save, MapPin } from 'lucide-react';
+import { queryLocationPermission, requestLocationAccess } from '../services/useLocationConsent';
 
 export const SettingsPage = ({ onBack }) => {
   const [notifs, setNotifs] = useState(true);
+
+  // Estado del permiso de ubicación, para poder reintentarlo desde aquí si
+  // se rechazó la primera vez en Inicio (ver LocationConsent.jsx).
+  const [locationStatus, setLocationStatus] = useState('checking');
+
+  useEffect(() => {
+    queryLocationPermission().then(setLocationStatus);
+  }, []);
+
+  const handleRetryLocation = async () => {
+    setLocationStatus(await requestLocationAccess());
+  };
 
   return (
     <motion.div 
@@ -40,6 +53,37 @@ export const SettingsPage = ({ onBack }) => {
               <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${notifs ? 'left-7' : 'left-1'}`} />
             </button>
           </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
+          <p className="text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest">Ubicación</p>
+          <div className="flex items-center justify-between py-2">
+            <div className="flex items-center gap-3">
+              <MapPin size={20} className="text-blue-600" />
+              <div>
+                <p className="font-bold text-sm">Permiso de ubicación</p>
+                <p className="text-[10px] font-bold uppercase text-slate-400">
+                  {locationStatus === 'granted' && 'Activado'}
+                  {locationStatus === 'denied' && 'Bloqueado'}
+                  {locationStatus === 'prompt' && 'No activado'}
+                  {locationStatus === 'checking' && 'Verificando...'}
+                </p>
+              </div>
+            </div>
+            {locationStatus !== 'granted' && (
+              <button
+                onClick={handleRetryLocation}
+                className="text-[11px] font-black uppercase text-blue-600 bg-blue-50 px-3 py-2 rounded-xl active:scale-95 transition-transform"
+              >
+                Reintentar
+              </button>
+            )}
+          </div>
+          {locationStatus === 'denied' && (
+            <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
+              Bloqueaste el permiso desde el navegador — actívalo en los ajustes del sitio antes de reintentar aquí.
+            </p>
+          )}
         </div>
 
         <button className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2">
