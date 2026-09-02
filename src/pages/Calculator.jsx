@@ -43,18 +43,29 @@ export default function Calculator({ onBack }) {
             name: `${card.bank_name} ${card.card_name}`,
             annualFee: card.annual_fee,
             color: color,
-            cashbackRates: { restaurantes: 0, gasolina: 0, super: 0 }
+            cashbackRates: { restaurantes: 0, gasolina: 0, super: 0 },
+            // Antes, una tarjeta sin ninguna tarifa cargada en Benefits_Matrix
+            // (ej. BBVA Azul, Nu Mastercard Gold, Plata Card) mostraba "$0 /
+            // Faltan $0" — se veía como si la calculadora estuviera mal,
+            // cuando en realidad simplemente no hay datos de cashback
+            // cargados para esa tarjeta todavía. Estas dos banderas permiten
+            // distinguir "no hay ningún dato" de "sí hay datos, pero no para
+            // restaurantes/gasolina/súper".
+            hasAnyBenefitData: false,
+            hasCalculatorCategoryData: false,
           };
         });
 
         // 4. Cruzamos los porcentajes con base en el ID de categoría
         matrixData.forEach(row => {
-          if (structuredCards[row.card_id]) {
-            const rateValue = row.percentage / 100;
-            if (row.category_id === 1) structuredCards[row.card_id].cashbackRates.restaurantes = rateValue;
-            if (row.category_id === 2) structuredCards[row.card_id].cashbackRates.gasolina = rateValue;
-            if (row.category_id === 4) structuredCards[row.card_id].cashbackRates.super = rateValue;
-          }
+          const card = structuredCards[row.card_id];
+          if (!card) return;
+
+          card.hasAnyBenefitData = true;
+          const rateValue = row.percentage / 100;
+          if (row.category_id === 1) { card.cashbackRates.restaurantes = rateValue; card.hasCalculatorCategoryData = true; }
+          if (row.category_id === 2) { card.cashbackRates.gasolina = rateValue; card.hasCalculatorCategoryData = true; }
+          if (row.category_id === 4) { card.cashbackRates.super = rateValue; card.hasCalculatorCategoryData = true; }
         });
 
         setCardsMatrix(Object.values(structuredCards));
@@ -125,7 +136,13 @@ export default function Calculator({ onBack }) {
 
         <div className="space-y-2">
           {cardsMatrix.map(card => (
-            <ResultCard key={card.id} card={card} cashbackEarned={calculateCashback(card)} />
+            <ResultCard
+              key={card.id}
+              card={card}
+              cashbackEarned={calculateCashback(card)}
+              hasAnyBenefitData={card.hasAnyBenefitData}
+              hasCalculatorCategoryData={card.hasCalculatorCategoryData}
+            />
           ))}
         </div>
       </div>
